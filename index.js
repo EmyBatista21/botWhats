@@ -12,13 +12,19 @@ client.on('qr', (qr) => {
 });
 
 // Função segura para envio de mensagens
-async function sendMessageSafe(chatId, text) {
+async function sendMessageSafe(chatId, text, options = {}) {
   try {
-    const cleanText = text.normalize("NFKC"); // normaliza caracteres
-    await client.sendMessage(chatId, cleanText);
+    const cleanText = text.normalize("NFKC");
+    await client.sendMessage(chatId, cleanText, options);
   } catch (err) {
     console.error('❌ Erro ao enviar mensagem:', err.message);
   }
+}
+
+// Função para obter todos os membros do grupo
+async function getAllParticipants(chatId) {
+  const chat = await client.getChatById(chatId);
+  return chat.participants.map(p => p.id._serialized);
 }
 
 // Mensagens automáticas programadas
@@ -37,35 +43,37 @@ scheduledMessages.forEach((item) => {
   }, item.interval);
 });
 
-// Comandos dinâmicos em português
+// Comandos dinâmicos
 const commands = {
   '!ping': 'pong 🏓',
-  '!ajuda': 'Lista de comandos:\n!ping\n!ajuda\n!menu\n!pausar\n!remover @',
+  '!ajuda': 'Lista de comandos:\n!ping\n!ajuda\n!menu\n!pausar\n!remover @\n!aviso [mensagem]',
   '!menu': 'Opções disponíveis:\n1. Status\n2. Informações\n3. Suporte',
-  '!pausar': '⚠️ O bot vai se desligar agora.'
+  '!pausar': '⚠️ Cururu vai dormir agora 💤😴💤.'
 };
 
-// Respostas automáticas
+// Respostas automáticas simples
 const autoResponses = {
-  'bom dia': '🌞 Bom dia, pessoal!',
-  'boa tarde': '☀️ Boa tarde, pessoal!',
-  'boa noite': '🌙 Boa noite, pessoal!',
-  'admin': 'Adicionar Usuario do Admin'
+  'oie bot': 'Olá',
+  'bom dia bot': '🌞 Bom dia, pessoal!',
+  'boa tarde bot': '☀️ Boa tarde, pessoal!',
+  'boa noite bot': '🌙 Boa noite, pessoal!',
+  'ver admin bot': 'Mostrar Usuarios do Admin'
 };
 
 // Evento: bot conectado
 client.on('ready', async () => {
   console.log('✅ Bot conectado!');
 
-  // Aviso para todos os grupos
   for (const item of scheduledMessages) {
-    await sendMessageSafe(item.chatId, '✅ O bot acabou de se conectar e está online!');
+    await sendMessageSafe(item.chatId, '✅ Cururu acabou de se conectar e está online!');
+    await sendMessageSafe(item.chatId, 'Olá pessoal');
   }
 });
 
 // Evento: recebimento de mensagens
 client.on('message', async (message) => {
-  const text = message.body;
+  const text = message.body.trim();
+  const chat = await message.getChat();
 
   // 1️⃣ Comando pausar
   if (text.toLowerCase() === '!pausar') {
@@ -80,7 +88,6 @@ client.on('message', async (message) => {
 
   // 2️⃣ Comando remover participante pelo @
   if (text.toLowerCase().startsWith('!remover')) {
-    const chat = await message.getChat();
     if (!message.mentionedIds.length) {
       await sendMessageSafe(message.from, '❌ Por favor, mencione o usuário que deseja remover.');
       return;
@@ -88,7 +95,7 @@ client.on('message', async (message) => {
 
     try {
       await chat.removeParticipants(message.mentionedIds);
-      await sendMessageSafe(message.from, '✅ Usuário(s) removido(s) com sucesso.');
+      await sendMessageSafe(message.from, '✅ Usuário removido com sucesso.');
     } catch (err) {
       console.error('❌ Erro ao remover participante:', err.message);
       await sendMessageSafe(message.from, '❌ Não foi possível remover o participante. Verifique se você tem permissão.');
@@ -96,34 +103,48 @@ client.on('message', async (message) => {
     return;
   }
 
-  // 3️⃣ Outros comandos dinâmicos
+  // 3️⃣ Comando menção fantasma (!aviso)
+  if (text.toLowerCase().startsWith('!aviso')) {
+    const avisoMsg = text.replace('!aviso', '').trim();
+    if (!avisoMsg) {
+      await sendMessageSafe(message.from, '⚠️ Use assim: !aviso [sua mensagem]');
+      return;
+    }
+
+    const participants = await getAllParticipants(chat.id._serialized);
+
+    // Envia mensagem "silenciosa" mencionando todos sem mostrar os @
+    await sendMessageSafe(chat.id._serialized, avisoMsg, { mentions: participants });
+    console.log(`📣 Aviso enviado para ${participants.length} membros do grupo ${chat.name}`);
+    return;
+  }
+
+  // 4️⃣ Outros comandos
   if (commands[text.toLowerCase()]) {
     await sendMessageSafe(message.from, commands[text.toLowerCase()]);
     return;
   }
 
-  // 4️⃣ Respostas automáticas
+  // 5️⃣ Respostas automáticas
   Object.keys(autoResponses).forEach(async (keyword) => {
-    const regex = new RegExp(`\\b${keyword}\\b`, 'i'); // case-insensitive
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
     if (regex.test(text)) {
       await sendMessageSafe(message.from, autoResponses[keyword]);
     }
   });
 
-  // 5️⃣ Exibir chatId de qualquer mensagem (opcional)
+  // 6️⃣ Log das mensagens recebidas
   console.log(`📌 Mensagem de ${message.from}: ${message.body}`);
 });
 
 // Evento: boas-vindas para novos membros
 client.on('group_join', async (notification) => {
   const chat = await notification.getChat();
-
-  // Pega todos os IDs dos novos participantes
   const participants = notification.recipientIds || [notification.id._serialized];
 
   for (const participantId of participants) {
     const contact = await client.getContactById(participantId);
-    const welcomeMessage = `👋 Olá, ${contact.pushname || contact.number}! Bem-vindo(a) ao grupo ${chat.name}!`;
+    const welcomeMessage = `👋 Olá, ${contact.pushname || contact.number}! Bem-vinda ao grupo ${chat.name}!`;
     await sendMessageSafe(chat.id._serialized, welcomeMessage);
   }
 });
