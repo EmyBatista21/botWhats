@@ -14,7 +14,9 @@ const client = new Client({
 
 client.on('qr', (qr) => {
   console.log('📱 Escaneie o QR code:');
-  qrcode.generate(qr, { small: true });
+  //qrcode.generate(qr, { small: true });
+  console.log('🚨 QR Code Data URL (Copie e cole no navegador para escanear):');
+    console.log(`data:image/png;base64,${qr}`);  
 });
 
 client.on('authenticated', () => {
