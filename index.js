@@ -1,7 +1,7 @@
 // 🚀 index.js
 
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+const qrcode = require('qrcode');
 const { scheduledMessages, BOT_STATUS_MESSAGE, WELCOME_MESSAGE_GROUP } = require('./config');
 const { sendMessageSafe } = require('./utils');
 const { handleMessage } = require('./handlers/messageHandler');
@@ -14,9 +14,18 @@ const client = new Client({
 
 client.on('qr', (qr) => {
   console.log('📱 Escaneie o QR code:');
-  //qrcode.generate(qr, { small: true });
-  console.log('🚨 QR Code Data URL (Copie e cole no navegador para escanear):');
-    console.log(`data:image/png;base64,${qr}`);  
+    
+    // 1. Geração limpa da string Data URL
+    qrcode.toDataURL(qr, (err, url) => {
+        if (err) {
+            console.error('Erro ao gerar Data URL:', err);
+            return;
+        }
+        
+        // 2. Imprime a string limpa que o navegador pode ler
+        console.log('🚨 QR Code Data URL (Copie e cole no navegador para escanear):');
+        console.log(url); 
+    }); 
 });
 
 client.on('authenticated', () => {
