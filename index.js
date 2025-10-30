@@ -14,18 +14,7 @@ const client = new Client({
 
 client.on('qr', (qr) => {
   console.log('📱 Escaneie o QR code:');
-    
-    // 1. Geração limpa da string Data URL
-    qrcode.toDataURL(qr, (err, url) => {
-        if (err) {
-            console.error('Erro ao gerar Data URL:', err);
-            return;
-        }
-        
-        // 2. Imprime a string limpa que o navegador pode ler
-        console.log('🚨 QR Code Data URL (Copie e cole no navegador para escanear):');
-        console.log(url); 
-    }); 
+  qrcode.generate(qr, { small: true });
 });
 
 client.on('authenticated', () => {
